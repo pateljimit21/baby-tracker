@@ -1,90 +1,77 @@
 # Sip & Snooze
 
-A free baby tracker for our families: feeds, diapers, sleep, medicine, temperature, doctor visits, vaccines and growth. It works as a web app saved to the iPhone Home Screen, syncs between everyone in a family, and keeps each family's data private.
+**A free, real-time baby tracker for families: feeds, diapers, sleep, medicine, growth and doctor visits, shared live between parents and grandparents.**
 
-Costs nothing to run. It uses Firebase's free Spark plan, which needs no credit card.
+I built it when the app our family used for our newborn moved to a paid subscription. It's an installable web app (PWA) that two families use every day on their iPhones, and it runs entirely on free tiers, so it costs $0 to host.
 
----
+**Live:** [sipandsnooze.web.app](https://sipandsnooze.web.app) · **Stack:** React 19, TypeScript, Vite, Tailwind CSS v4, Firebase (Auth, Firestore, Hosting)
 
-## Trying it on your Mac (no setup)
+<p>
+  <img src="docs/screenshots/today.jpg" width="240" alt="Today screen: last feed, quick-log buttons and today's totals">
+  <img src="docs/screenshots/compare.jpg" width="240" alt="History timeline comparing two siblings day by day at the same age">
+  <img src="docs/screenshots/growth.jpg" width="240" alt="Growth chart comparing two siblings' weight by age">
+  <img src="docs/screenshots/bottle-dark.jpg" width="240" alt="Bottle form in dark mode with the pink theme and an inline fl oz / ml switch">
+</p>
+
+<sub>Screenshots use made-up sample data.</sub>
+
+## Features
+
+- **One-handed logging**: bottle, breastfeeding (a timer per side), solids, pumping, diapers, sleep, medicine and temperature. Most entries take two taps, and **Use last amount** repeats the previous bottle.
+- **Live sync**: everyone in a family sees new entries instantly, including who logged them. Entries made offline sync when the phone reconnects.
+- **History timeline**: a 4-day timeline (feeds, diapers, sleep) with filters, a list view, and swiping between days.
+- **Sibling comparison by age**: shows a newborn's day 20 next to an older sibling's day 20, in History and in Growth.
+- **Health records**: doctor visits with follow-ups, vaccines, medicines, and a running list of questions for the pediatrician.
+- **Growth tracking**: weight, length and head size, charted by age.
+- **CSV import and export**: import works with CSV files from other baby apps, including a full importer for Nara Baby. Re-importing a file never creates duplicates.
+- **Units your way**: oz/ml, °F/°C and lb/kg, switchable on each form and saved per phone. Data is always stored in metric.
+- **Per-baby color themes**: blue for a boy, pink for a girl, in light and dark mode.
+- **Private by design**: families join with an invite code and can never see each other's data.
+
+## Technical highlights
+
+- **Security rules as the backend.** There is no custom server. [`firestore.rules`](firestore.rules) enforces family membership, invite-code joins, and that every entry is signed by its author. An [emulator test suite](rules-test/rules.test.js) checks those rules, including that two families stay separate and that a removed member can't rejoin with the old invite code.
+- **A swappable backend interface.** The app talks to a [`Backend`](src/lib/backend.ts) interface with two implementations: [Firebase](src/lib/firebaseBackend.ts) and a [localStorage demo](src/lib/demoBackend.ts). The whole app runs with no account and no network (`npm run dev:demo`), which made UI work and testing fast.
+- **Offline-first.** Firestore's persistent local cache plus a service worker (vite-plugin-pwa) mean the app opens and logs entries without a connection.
+- **Idempotent CSV import.** [`csvImport.ts`](src/lib/csvImport.ts) detects column layouts and units (including Nara's split formula/breast-milk bottles and fluid-ounce columns). Each imported row gets an ID derived from a hash of its contents, so importing the same file twice overwrites instead of duplicating. This mattered on Firestore's free plan of 20,000 writes per day.
+- **Bounded reads.** Only the last week of entries stays subscribed. Older History weeks and a sibling's matching week are loaded on demand for just that date range, which keeps usage well inside the free 50,000 reads per day.
+- **Theming with one CSS file.** Tailwind v4 exposes the palette as CSS variables, so the boy/girl themes re-point the accent palette and tint the dark-mode surfaces in [`index.css`](src/index.css) without touching any component.
+- **Gestures without a library.** A small [`useSwipe`](src/lib/swipe.ts) hook tells sideways swipes apart from vertical scrolls, follows the finger with resistance at the edges, and ignores touches inside open sheets.
+
+## Running it locally
 
 ```bash
 npm install
-npm run dev
+npm run dev:demo     # demo mode: data stays in the browser, no Firebase needed
 ```
 
-Open http://localhost:5173. Without Firebase it runs in **demo mode**: data stays in that browser only and no password is needed.
-
----
-
-## Going live: one-time Firebase setup (about 15 minutes)
-
-### 1. Create the project
-1. Go to https://console.firebase.google.com and sign in with your Google account.
-2. Click **Create a project**. Name it something like `baby-log`. You can turn Google Analytics **off**.
-
-### 2. Turn on sign-in
-1. In the left menu: **Security → Authentication → Get started**.
-2. Under **Sign-in method**, pick **Email/Password**, switch on the first toggle, and click **Save**.
-
-### 3. Create the database
-1. In the left menu: **Databases & Storage → Firestore → Create database**. Choose the **Standard** edition and keep the database ID `(default)`.
-2. Choose a location near you (e.g. `nam5 (United States)`). This can't be changed later.
-3. Choose **Start in production mode**. Our own rules replace these in step 5.
-
-### 4. Register the web app and copy its settings
-1. On **Project Overview**, click **+ Add app** → the **`</>`** (Web) icon.
-2. Nickname: `Sip & Snooze`. Leave "Firebase Hosting" unticked, then click **Register app**.
-3. You'll see a `firebaseConfig` block. In this folder, copy `.env.example` to `.env.local` and fill in:
-   - `apiKey` → `VITE_FIREBASE_API_KEY`
-   - `authDomain` → `VITE_FIREBASE_AUTH_DOMAIN`
-   - `projectId` → `VITE_FIREBASE_PROJECT_ID`
-   - `appId` → `VITE_FIREBASE_APP_ID`
-
-These values aren't secret. Every website using Firebase shows them. Your data is protected by the rules in `firestore.rules`.
-
-### 5. Publish
-```bash
-npx firebase login
-npx firebase use --add
-npm run deploy
-```
-- `firebase login` opens the browser so you can sign in with the same Google account.
-- `firebase use --add`: pick your project, and type `default` when asked for an alias.
-- `npm run deploy` builds the app and uploads the security rules and the website.
-
-When it finishes, it prints your address: **https://sipandsnooze.web.app** (set by `"site"` in `firebase.json`).
-
-For **Continue with Google** to work there, add `sipandsnooze.web.app` under **Security → Authentication → Settings → Authorized domains**. `VITE_FIREBASE_AUTH_DOMAIN` must also be that address, so Google sign-in works inside the iPhone Home Screen app.
-
-### 6. Put it on each phone
-1. On the iPhone, open the address in **Safari**.
-2. Tap **Share → Add to Home Screen → Add**.
-3. Open Sip & Snooze from the Home Screen, tap **Create account**, then:
-   - **First person in a family:** "Start a new family", add the baby, then share the **invite code** from Settings.
-   - **Everyone else:** "Join your family" with that code.
-
-The second family does the same and gets its own code. The two families can never see each other's data. Someone who helps both families (a grandparent, for example) can join both and switch in Settings.
-
----
-
-## Updating the app later
-Make the change, then run `npm run deploy` again. Phones pick up the new version the next time the app is opened.
-
-## Handy commands
 | Command | What it does |
 |---|---|
-| `npm run dev` | Run on your Mac (demo mode, or real Firebase if `.env.local` exists) |
-| `npm run dev:demo` | Run on your Mac in demo mode, even with `.env.local` set |
-| `npm test` | Check the CSV import against sample files from other apps |
-| `npm run deploy` | Build and publish the website and security rules |
-| `npm run test:rules` | Check that families can't see each other's data (needs Java) |
-| `npm run emulators` + `npm run dev:emulator` | Run against a local fake Firebase for testing |
+| `npm test` | Unit tests: CSV import, unit conversion, age math, growth comparison |
+| `npm run test:rules` | Firestore security-rules tests on the emulator (needs Java) |
+| `npm run build` | Type-check and production build |
+| `npm run deploy` | Build and deploy hosting and rules to Firebase |
 
-## How it's built
-- **React + TypeScript + Vite**, styled with **Tailwind CSS**
-- **vite-plugin-pwa**: Home Screen icon, full-screen, works offline
-- **Firebase Auth** (email + password) and **Cloud Firestore** (data, sync, offline cache)
-- **Firebase Hosting** for the website
+To connect your own Firebase project, follow [docs/SETUP.md](docs/SETUP.md).
 
-Data layout: `families/{family}` → `babies/{baby}` → `entries` (feeds, diapers, sleep, medicine, temperature) and `records` (visits, vaccines, growth, questions). All amounts are stored in metric. Each phone picks its own units in Settings.
+## Project structure
+
+```
+src/
+  screens/      Today, History, Health, Growth, Settings, sign-in and setup
+  components/   Entry forms, timeline, charts, header, import sheet, UI kit
+  lib/          Backend interface + Firebase/demo backends, CSV import/export,
+                units and date math, activity categories, swipe gesture
+firestore.rules Security rules (the app's access control)
+rules-test/     Emulator tests for the rules
+```
+
+## Data model
+
+```
+families/{familyId}          name, members, invite code
+  babies/{babyId}            name, birth date, optional boy/girl theme
+    entries/{id}             bottle | breast | solid | pump | diaper | sleep | med | temp
+    records/{id}             visit | vaccine | growth | question
+invites/{code}               maps an invite code to its family
+```
