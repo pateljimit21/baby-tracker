@@ -1,0 +1,140 @@
+@import 'tailwindcss';
+
+:root {
+  color-scheme: light dark;
+  -webkit-tap-highlight-color: transparent;
+}
+
+html,
+body {
+  @apply text-slate-900 dark:text-slate-100;
+  overscroll-behavior-y: none;
+  /* Content dragged sideways (History swipe) must not widen the page. */
+  overflow-x: clip;
+}
+
+body {
+  font-family:
+    -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+}
+
+/* Stop iOS zooming in when a field gets focus (it zooms below 16px). */
+input,
+select,
+textarea {
+  font-size: 16px;
+}
+
+.pt-safe {
+  padding-top: env(safe-area-inset-top);
+}
+.pb-safe {
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+/* Activity colors for the History timeline. Checked for color-blind separation
+   and contrast against the light (white) and dark (slate-800) card backgrounds. */
+:root {
+  --c-feed: #eb6834;
+  --c-diaper: #1baf7a;
+  --c-sleep: #2a78d6;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --c-feed: #d95926;
+    --c-diaper: #199e70;
+    --c-sleep: #3987e5;
+  }
+}
+
+/* History: the new day slides in from the side you swiped toward. */
+@keyframes slide-from-right {
+  from {
+    transform: translateX(48px);
+    opacity: 0.3;
+  }
+}
+@keyframes slide-from-left {
+  from {
+    transform: translateX(-48px);
+    opacity: 0.3;
+  }
+}
+.slide-from-right {
+  animation: slide-from-right 0.2s ease-out;
+}
+.slide-from-left {
+  animation: slide-from-left 0.2s ease-out;
+}
+@media (prefers-reduced-motion: reduce) {
+  .slide-from-right,
+  .slide-from-left {
+    animation: none;
+  }
+}
+
+/* Baby color themes. The app's accent color is Tailwind's teal everywhere (buttons, links, selected
+   tabs); for a boy or girl it is swapped for blue or pink. Set on <html> for the selected baby,
+   or on any element to preview a theme inside it (the Boy / Girl picker). */
+[data-baby='boy'] {
+  --color-teal-50: var(--color-blue-50);
+  --color-teal-100: var(--color-blue-100);
+  --color-teal-200: var(--color-blue-200);
+  --color-teal-300: var(--color-blue-300);
+  --color-teal-400: var(--color-blue-400);
+  --color-teal-500: var(--color-blue-500);
+  --color-teal-600: var(--color-blue-600);
+  --color-teal-700: var(--color-blue-700);
+  --color-teal-800: var(--color-blue-800);
+  --color-teal-900: var(--color-blue-900);
+  --color-teal-950: var(--color-blue-950);
+}
+[data-baby='girl'] {
+  --color-teal-50: var(--color-pink-50);
+  --color-teal-100: var(--color-pink-100);
+  --color-teal-200: var(--color-pink-200);
+  --color-teal-300: var(--color-pink-300);
+  --color-teal-400: var(--color-pink-400);
+  --color-teal-500: var(--color-pink-500);
+  --color-teal-600: var(--color-pink-600);
+  --color-teal-700: var(--color-pink-700);
+  --color-teal-800: var(--color-pink-800);
+  --color-teal-900: var(--color-pink-900);
+  --color-teal-950: var(--color-pink-950);
+}
+
+/* Page background: slate, or a soft blue or pink tint so the whole page reads as the baby's color,
+   not just the buttons. Used by the page and the sticky header (bg-(--page)). */
+:root {
+  --page: var(--color-slate-50);
+}
+html[data-baby='boy'] {
+  --page: #eef4ff;
+}
+html[data-baby='girl'] {
+  --page: #fff1f6;
+}
+@media (prefers-color-scheme: dark) {
+  :root,
+  html[data-baby] {
+    --page: var(--color-slate-900);
+  }
+  /* Dark mode is already slate (a gray-navy), so blue or pink buttons alone don't stand out.
+     Tint the dark surfaces too: page (900), cards and sheets (800), borders (700). */
+  html[data-baby='boy'] {
+    --color-slate-950: #071331;
+    --color-slate-900: #0a1a40;
+    --color-slate-800: #142a5e;
+    --color-slate-700: #234283;
+  }
+  html[data-baby='girl'] {
+    --color-slate-950: #1e0716;
+    --color-slate-900: #2b0b21;
+    --color-slate-800: #431737;
+    --color-slate-700: #642655;
+  }
+}
+html,
+body {
+  background-color: var(--page);
+}

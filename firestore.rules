@@ -1,0 +1,83 @@
+rules_version = '2';
+
+// Who can see and change what. Checked on Google's servers, so the app can't get around it.
+// - Only members of a family can read or write that family's babies and logs.
+// - Joining a family needs its current invite code.
+// - Removing someone changes the code, so they can't rejoin with the old one.
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function familyDoc(familyId) {
+      return /databases/$(database)/documents/families/$(familyId);
+    }
+
+    function memberOf(familyId) {
+      return signedIn() && request.auth.uid in get(familyDoc(familyId)).data.memberIds;
+    }
+
+    // Invite code -> family id. You can look up a code you were given, but not list them all.
+    match /invites/{code} {
+      allow get: if signedIn();
+      // Only members can make a code, and only the one their family is switching to in the same save.
+      allow create: if signedIn()
+        && request.resource.data.keys().hasOnly(['familyId'])
+        && request.auth.uid in getAfter(familyDoc(request.resource.data.familyId)).data.memberIds
+        && getAfter(familyDoc(request.resource.data.familyId)).data.inviteCode == code;
+      allow delete: if memberOf(resource.data.familyId);
+    }
+
+    match /families/{familyId} {
+      function isMember() {
+        return signedIn() && request.auth.uid in resource.data.memberIds;
+      }
+
+      function validShape() {
+        let d = request.resource.data;
+        return d.keys().hasOnly(['name', 'memberIds', 'members', 'inviteCode', 'createdBy'])
+          && d.name is string && d.name.size() > 0 && d.name.size() <= 100
+          && d.memberIds is list && d.members is map
+          && d.inviteCode is string;
+      }
+
+      // Adding only yourself, with the family's current invite code.
+      function isJoining() {
+        let before = resource.data;
+        let after = request.resource.data;
+        return signedIn()
+          && !(request.auth.uid in before.memberIds)
+          && after.diff(before).affectedKeys().hasOnly(['memberIds', 'members'])
+          && after.memberIds.size() == before.memberIds.size() + 1
+          && after.memberIds.toSet() == before.memberIds.toSet().union([request.auth.uid].toSet())
+          && after.members.diff(before.members).affectedKeys().hasOnly([request.auth.uid])
+          && after.members[request.auth.uid].via == before.inviteCode;
+      }
+
+      allow get, list: if isMember();
+      allow create: if signedIn()
+        && validShape()
+        && request.resource.data.memberIds == [request.auth.uid]
+        && request.resource.data.members.keys().hasOnly([request.auth.uid])
+        && request.resource.data.createdBy == request.auth.uid;
+      allow update: if validShape() && (isMember() || isJoining());
+
+      match /babies/{babyId} {
+        allow read, write: if memberOf(familyId);
+
+        // Logs and health records. Saves must be signed with your own account.
+        match /{collection}/{docId} {
+          allow read: if memberOf(familyId) && collection in ['entries', 'records'];
+          allow delete: if memberOf(familyId) && collection in ['entries', 'records'];
+          allow create, update: if memberOf(familyId)
+            && collection in ['entries', 'records']
+            && request.resource.data.by == request.auth.uid
+            && request.resource.data.time is number;
+        }
+      }
+    }
+  }
+}
