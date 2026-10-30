@@ -38,6 +38,10 @@ I built it when the app our family used for our newborn moved to a paid subscrip
 - **Theming with one CSS file.** Tailwind v4 exposes the palette as CSS variables, so the boy/girl themes re-point the accent palette and tint the dark-mode surfaces in [`index.css`](src/index.css) without touching any component.
 - **Gestures without a library.** A small [`useSwipe`](src/lib/swipe.ts) hook tells sideways swipes apart from vertical scrolls, follows the finger with resistance at the edges, and ignores touches inside open sheets.
 
+## How I built it
+
+I built Sip & Snooze end to end, from the problem to a production app two families use every day. I used **Claude Code** as my AI development tool throughout: planning features, generating and refactoring code, writing tests, and debugging. I led the work: I defined every feature, made the architecture calls (a PWA on Firebase's free tier, Firestore security rules as the access-control layer, a swappable backend with an offline demo mode), and verified each change against real data before shipping. [More on my process →](docs/HOW-I-BUILT-THIS.md)
+
 ## Running it locally
 
 ```bash
